@@ -1,0 +1,13 @@
+base
+knitr
+ggplot2
+plyr
+lattice
+caret
+data.table
+randomForest
+scales
+slidify
+gridExtra
+dplyr
+reshape2

@@ -1,0 +1,130 @@
+Data Products: Project Pitch
+========================================================
+title       : Data Science Certification on Coursera
+author      : Kate Stohr
+date        : August 23, 2015
+font-family : 'Helvetica'
+
+
+Favorite Superhero 
+========================================================
+
+It's been a fun ten months. I thought it would be fun to get to know the 'peers' who are grading projects a little better. In that spirit, here's the datascience equivalent of that perennial conversational icebreaker, "Who is your favorite superhero?"
+
+Fig. 1: Data on demographic information and superhero preference was collected from 400 survey participants. 
+
+```{r echo=FALSE}
+options(digits=4, scipen=10)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(plyr)
+library(caret)
+library(data.table)
+library(randomForest)
+library(stats)
+library(scales)
+library(dplyr)
+library(gridExtra)
+library(reshape2)
+```
+
+```{r cache=TRUE, eval=FALSE, echo=FALSE}
+
+url <- "https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520#"
+##Downloaded data manually
+```
+
+```{r echo=FALSE, cache=TRUE, message=TRUE, warning=TRUE}
+## Read data, strip any extra white space that might cause variables to be misclassified. 
+data<-read.csv("data/survey-353802-2015-08-16-raw-data.csv", strip.white=T, na.strings="undefined")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Rename headers
+names<-c("Id", "Date", "Age", "Career", "Parental.Status", "Education", "Employment.Status", "Ethinicity.Race", "Gender", "Household.Income", "Relationship.Status", "State", "County", "City", "Zip", "Csa", "MSAs.USA", "Superman", "Batman", "Spiderman", "Wonder.Woman","The.Hulk", "Thor", "Wolverine", "Movies.Past.Year", "Movies.Future.Year", "Merch.Past.Year", "Merch.Future.Year")
+names(data)<-names
+data<-slice(data, -1)
+```
+
+```{r echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE}
+#Remove NA's. Insure variables classed correctly. 
+class_type<-sapply(data, class)
+
+data$Movies.Past.Year<-revalue(data$Movies.Past.Year, c("Yes, one" = "One", "No" = "No", "Yes, multiple" = "Multiple"))
+data$Merch.Past.Year<-revalue(data$Merch.Past.Year, c("Yes, one" = "One", "No" = "No", "Yes, multiple" = "Multiple"))
+data$Parental.Status<-revalue(data$Parental.Status, c("1 child"="1",  "2 children"="2",  "3 children"="3", "4 children"="4", "5+ children" ="5+", "no children"="0"))
+
+##isolate "logical" variables 
+log<-names(class_type[class_type=="logical"]) 
+## If variable only contains NAs then remove
+if (sum(!is.na(data[log])) == 0) {  
+        data<-data[ , -which(names(data) %in% log)] 
+        }
+```  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sub<-data ## move cleaned data into a new variable for processing.
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#melt the data to move the ranking values into a single column
+id<-names(sub[, c(1:16, 24:27)])
+msub <- melt(sub, id=id, variable="Superhero")
+
+# filter only top ranked choice
+msub<-filter(msub, value=="First")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Remove unrelated variables 
+hero<-subset(msub, select=-c(Id, Date, value))
+# Remove location-related variables 
+hero<-subset(hero, select=-c(Zip, City, County, MSAs.USA))
+```
+
+```{r echo=FALSE, fig.width=12, fig.height=4}
+a<-qplot(factor(Superhero), data=hero, geom="bar", fill=factor(Superhero))
+b<-qplot(factor(Merch.Future.Year), data=hero, geom="bar", fill=factor(Superhero))
+grid.arrange(a,b, nrow=1, as.table = TRUE)
+```
+
+Summary 
+========================================================
+
+This project analyzes demographic data collected from 400 survey takers asked to pick their favorite superhero from a group of popular superheros. The goal of the project is to build a tool that can predict a user's favorite superhero from a limited set of superheros based on a limited set of demographic data and some 'hints' from the user. 
+
+<small>*Data Source*  
+Data provided courtesy of: 
+Ask Your Target Market, "[Superman](https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520#)", June 11, 2015, ([wwww.aytm.com](http://www.aytm.com)). </small> 
+
+Data Analysis
+========================================================
+left: 55%
+
+<small>For this project, the training data was split into a training and a test set. I cleaned and pre-processed the data and fit a model with Random Forests. 
+
+The initial model had low (41%) accuracy. To augment the model in the data product, I added inputs such as "Which superpower would you most like to possess?"
+
+The data product collects user data, fits it to the model, and makes a prediction. User data is added to the dataset. After each session the data is updated and the model is retrained with the new data. </small>
+
+***
+
+<small>The data analysis showed: 
+
+1. Women were more likely to choose Wonderwoman.
+2. Older participants were more likley to choose Superman.
+3. Participants who were more likely in the past or future to buy merchandise or watch superhero movies were more likely to pick less popular characters.  
+4. Other factors, such as location or education, had little bearing on preference.</small>
+
+Known Limitations
+========================================================
+There are a number of known issues with the resulting model: 
+
+- The superhero list is limited, and may not include the true favorite of the respondent
+- The list favors DC and Marvel comics heros, and is not reflective of world cultures 
+- Demographic information may have little bearing on superhero preference, which may be the result of other variables such as sibling preference, exposure to television, or overall nerdiness; data for which is not available.
+- Users should be advised that a correlation is not an indication of causation.
+
+Enjoy.

@@ -1,0 +1,336 @@
+---
+title       : Developing Data Products - Project Pitch
+subtitle    : Data Science Coursera Certification
+author      : Kate Stohr
+job         : Principal, 99 antennas
+framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : tomorrow      # 
+widgets     : []            # {mathjax, quiz, bootstrap}
+mode        : selfcontained # {standalone, draft}
+knit        : slidify::knit2slides
+
+```{r echo=FALSE}
+options(digits=4, scipen=10)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+packages <- c("ggplot2", "plyr", "caret", "data.table", "randomForest", "stats", "scales", "gridExtra", "dplyr", "reshape2")
+sapply(packages, require, character.only = TRUE, quietly = TRUE, warn = FALSE)
+```
+---
+##Summary##  
+
+It's been a fun ten months. As we wrap up the last class, I thought it would be fun to get to know the 'peers' who are grading projects a little better. In that spirit, here's the datascience equivalent of that perennial conversational icebreaker, "Who is your favorite superhero?"
+---
+This project analyzes demographic data collected from 400 survey takers asked to pick their favorite superhero from a group of popular superheros. The goal of the project is to build a tool that can predict a user's favorite superhero from a limited set of superheros based on a limited set of demographic data and some 'hints' from the user.  
+
+*Data Source*
+Data provided courtesy of: 
+Ask Your Target Market, "[Superman](https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520#)", June 11, 2015, ([wwww.aytm.com](http://www.aytm.com)).  
+
+---
+## Known Limitations##
+There are a number of known issues with this analysis: 
+- The superhero list is limited, and may not include the true favorite of the respondent
+- The list favors DC and Marvel comics heros, and is not reflective of non-American cultures 
+- Demographic information may have little to do with superhero preference, which may be the result of other variables such as sibling preference, exposure to television, or overall nerdiness; data for which is not available.
+- Users should be advised that a correlation is not an indication of causation. 
+----
+##Data Analysis##
+
+For this project, the training data was split into a training and a test set. I cleaned and pre-processed the data. After performing some exploratory analysis, I fit the data using random forests due to its catagorical nature.
+
+###Load Data### 
+```{r cache=TRUE, eval=FALSE, ref.label=loaddata}
+
+setwd("~/Documents/Coursera/Data Products/project") ## sets working directory
+
+url <- "https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520#"
+##Downloaded data manually
+```
+
+```{r cache=TRUE, message=TRUE, warning=TRUE}
+## Read data, strip any extra white space that might cause variables to be misclassified. 
+data<-read.csv("data/survey-353802-2015-08-16-raw-data.csv", strip.white=T, na.strings="undefined")
+```
+
+###Process Data### 
+1. Rename headers.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+names<-c("Id", "Date", "Age", "Career", "Parental.Status", "Education", "Employment.Status", "Ethinicity.Race", "Gender", "Household.Income", "Relationship.Status", "State", "County", "City", "Zip", "Csa", "MSAs.USA", "Superman", "Batman", "Spiderman", "Wonder.Woman","The.Hulk", "Thor", "Wolverine", "Movies.Past.Year", "Movies.Future.Year", "Merch.Past.Year", "Merch.Future.Year")
+names(data)<-names
+data<-slice(data, -1)
+```
+
+2. Ensure variables are classed correctly, and remove variables that contain only NA's.
+
+```{r cache=TRUE, message=FALSE, warning=FALSE}
+class_type<-sapply(data, class)
+table(class_type) ## R interprets variables with all NAs as "logical"
+
+data$Movies.Past.Year<-revalue(data$Movies.Past.Year, c("Yes, one" = "One", "No" = "No", "Yes, multiple" = "Multiple"))
+data$Merch.Past.Year<-revalue(data$Merch.Past.Year, c("Yes, one" = "One", "No" = "No", "Yes, multiple" = "Multiple"))
+data$Parental.Status<-revalue(data$Parental.Status, c("1 child"="1",  "2 children"="2",  "3 children"="3", "4 children"="4", "5+ children" ="5+", "no children"="0"))
+
+##isolate "logical" variables 
+log<-names(class_type[class_type=="logical"]) 
+## If variable only contains NAs then remove
+if (sum(!is.na(data[log])) == 0) {  
+        data<-data[ , -which(names(data) %in% log)] 
+        }
+```  
+
+```{r}
+sub<-data ## move cleaned data into a new variable for processing.
+```
+
+5. Melt/Reshape the data to ensure that each variable corresponds to a unique set of information. 
+
+```{r}
+#melt the data to move the ranking values into a single column
+id<-names(sub[, c(1:16, 24:27)])
+msub <- melt(sub, id=id, variable="Superhero")
+
+# filter only top ranked choice
+msub<-filter(msub, value=="First")
+```
+
+3. Remove bookkeeping variables that are unrelated to the data we're trying to predict. Remove location-related variables which contain NA's and have too many levels to be useful in the model. 
+
+```{r}
+# Remove unrelated variables 
+hero<-subset(msub, select=-c(Id, Date, value))
+# Remove location-related variables 
+hero<-subset(hero, select=-c(Zip, City, County, MSAs.USA))
+```
+
+After cleaning, reshaping and removing unnecessary variables from the data, there are now `r dim(favorite)[2]` predictors remaining which will be used to train the model. 
+
+##Exploratory Analysis##
+
+There are some common themes. If you are a woman, you are more likely to select Wonder Woman. If you are older you are more likely to select Superman. However, it seems that while gender and age are contributing factors, they may not drive preference. 
+
+Familiarity with the pantheon of Marvel and DC comic superheros seems to be influencing the outcome. People who are unlikely to watch a movie or buy merchandise are much more likely to say, "Superman." Whereas, people who have kids, expect to watch a superhero film or buy superhero merchandise in the coming year are more likely to pick one of the other heros. So, variables associated with familiarity/knowledge seem to be more important than other demographic data. This makes sense and we'll focus on these variables in building the data product. 
+
+```{r}
+qplot(factor(Superhero), data=hero, geom="bar", fill=factor(Superhero))
+qplot(factor(Superhero), data=hero, geom="bar", fill=factor(Gender))
+qplot(factor(Superhero), data=hero, geom="bar", fill=factor(Education))
+qplot(factor(Superhero), data=hero, geom="bar", fill=factor(Ethinicity.Race))
+qplot(Superhero, Age, data=hero, color=Gender)
+qplot(factor(Gender), data=hero,geom="bar", fill=factor(Superhero))
+qplot(factor(Superhero),data=hero, geom="bar", fill=factor(State))
+qplot(factor(Movies.Past.Year),data=hero, geom="bar", fill=factor(Superhero))
+qplot(factor(Movies.Future.Year), data=hero, geom="bar", fill=factor(Superhero))
+qplot(factor(Merch.Past.Year), data=hero, geom="bar", fill=factor(Superhero))
+qplot(factor(Merch.Future.Year), data=hero, geom="bar", fill=factor(Superhero))
+```
+
+
+###Partition Data###
+The processed and cleaned dataset is partitioned into two randomly sampled data sets: training (60%) and testing (40%). This testing set will be used to estimate the out-of-sample error rate to understand how well the model will apply to new data gathered through the application. 
+
+```{r}
+set.seed(222) #sets the seed
+
+## create training and testing set
+inTrain<-createDataPartition(hero$Superhero,p=0.6,list=FALSE) ##training set to 60% for medium sized data sets. 
+training<-hero[inTrain,]
+testing<-hero[-inTrain,]
+``` 
+
+###Model Selection###
+
+The goal is to correctly predict which superhero will be picked as the favorite based on the data. Therefore a classification model is required. I use Random Forests. I use 4-fold cross validation to limit bias, with parallel processing to save computational time. 
+
+```{r cache=TRUE, message=FALSE, warning=FALSE}
+
+ctrl <- trainControl(allowParallel=T, method="cv", number=4) ## do 4-fold cross validation with parallel processing
+model <- train(Superhero ~ ., data=training, trControl=ctrl, method="rf") ## fit model with random forests
+```
+
+Next, I use the predict function on the training data to estimate the out of sample error rate. 
+
+```{r}
+prediction <- predict(model, newdata=training)
+acc_test<-sum(prediction == training$Superhero) / length(prediction)
+confusionMatrix(training$Superhero, prediction)$table
+confusionMatrix(training$Superhero, prediction)$overall
+```
+
+The estimate of the out-of-sample accuracy using the Random Forest model is `r percent(acc_test)`. However, the issue is that so many people chose Superman that the model has weighted that choice above all others, as reflected by the confusion matrix. 
+
+##Adding variables##
+Let's see if we add some data points if we can improve the model and prime it for a data product that is a bit more fun. 
+
+Ideally, as people use the data product they will inform the model. In the meantime, I'll make some assumptions, create some data points, and expand the model.  Let's assume that your favorite hero is likely to embody personality traits and/or powers that you admire.
+
+```{r}
+hero2<-hero
+power<-c("Invisibility, Strength, Flight") ##which superpower would you most like to possess?
+hero2$Power<-"Invisibility" ##Adds 'power' variable
+hero2$Creative<-0 # Creative vs. Hardworking
+hero2$Introverted<-0 #Introverted vs. Extroverted
+hero2$Agreeable<-0 #Agreeable vs. Moody
+hero2$DoGooder<-0 #Do Gooder vs. Rule Breaker 
+hero2$Strength<-0 #Strong vs. Agile 
+
+## Assigns the personality traits to the appropriate superhero based on common understanding of their character (aka, whatever my husband and daughter thought) 
+
+hero2[Superhero=="Wonder.Woman",]$Power<-"Invisibility"
+hero2[Superhero=="Wonder.Woman",]$Creative<-1
+hero2[Superhero=="Wonder.Woman",]$Introverted<-1
+hero2[Superhero=="Wonder.Woman",]$Agreeable<-0
+hero2[Superhero=="Wonder.Woman",]$DoGooder<-0
+hero2[Superhero=="Wonder.Woman",]$Strength<-1
+
+hero2[Superhero=="Batman",]$Power<-"Invisibility"
+hero2[Superhero=="Batman",]$Creative<-0
+hero2[Superhero=="Batman",]$Introverted<-0
+hero2[Superhero=="Batman",]$Agreeable<-1
+hero2[Superhero=="Batman",]$DoGooder<-1
+hero2[Superhero=="Batman",]$Strength<-1
+
+hero2[Superhero=="Wolverine",]$Power<-"Strength"
+hero2[Superhero=="Wolverine",]$Creative<-1
+hero2[Superhero=="Wolverine",]$Introverted<-1
+hero2[Superhero=="Wolverine",]$Agreeable<-1
+hero2[Superhero=="Wolverine",]$DoGooder<-1
+hero2[Superhero=="Wolverine",]$Strength<-0
+
+hero2[Superhero=="The.Hulk",]$Power<-"Strength"
+hero2[Superhero=="The.Hulk",]$Creative<-1
+hero2[Superhero=="The.Hulk",]$Introverted<-0
+hero2[Superhero=="The.Hulk",]$Agreeable<-1
+hero2[Superhero=="The.Hulk",]$DoGooder<-1
+hero2[Superhero=="The.Hulk",]$Strength<-0
+
+hero2[Superhero=="Superman",]$Power<-"Flight"
+hero2[Superhero=="Superman",]$Creative<-1
+hero2[Superhero=="Superman",]$Introverted<-1
+hero2[Superhero=="Superman",]$Agreeable<-0
+hero2[Superhero=="Superman",]$DoGooder<-0
+hero2[Superhero=="Superman",]$Strength<-0
+
+hero2[Superhero=="Thor",]$Power<-"Strength"
+hero2[Superhero=="Thor",]$Creative<-1
+hero2[Superhero=="Thor",]$Introverted<-1
+hero2[Superhero=="Thor",]$Agreeable<-1
+hero2[Superhero=="Thor",]$DoGooder<-0
+hero2[Superhero=="Thor",]$Strength<-0
+
+hero2[Superhero=="Spiderman",]$Power<-"Flight"
+hero2[Superhero=="Spiderman",]$Creative<-0
+hero2[Superhero=="Spiderman",]$Introverted<-0
+hero2[Superhero=="Spiderman",]$Agreeable<-1
+hero2[Superhero=="Spiderman",]$DoGooder<-1
+hero2[Superhero=="Spiderman",]$Strength<-1
+
+hero2$Power<-as.factor(hero2$Power)
+```
+
+###Model Tuning### 
+
+1. Reset the training and test set with new data set. 
+
+```{r cache=TRUE, message=FALSE, warning=FALSE}
+
+```{r}
+set.seed(223) #sets the seed
+
+## create training and testing set
+inTrain<-createDataPartition(hero2$Superhero,p=0.6,list=FALSE) ##training set to 60% for medium sized data sets. 
+training<-hero2[inTrain,]
+testing<-hero2[-inTrain,]
+``` 
+
+2. Rerun the model. 
+
+```{r}
+model2 <- train(Superhero ~ ., data=training, trControl=ctrl, method="rf") ## fit model with random forests
+#check important variables
+imp_var<-varImp(model2)
+imp_var
+```
+
+Now the most important variables influencing the model are the personality traits I assigned, as well as age, parental status and gender. This makes more sense. 
+
+```{r}
+prediction <- predict(model2, newdata=training)
+acc_test<-sum(prediction == training$Superhero) / length(prediction)
+confusionMatrix(training$Superhero, prediction)$table
+confusionMatrix(training$Superhero, prediction)$overall
+```
+
+Likewise the confusion matrix shows a distribution that is much more reflective of the original data set. And not suprisingly, the accuracy is `percent(acc_test)' Amazing! How did that happen...:)
+
+Lets cull the imputs to the most important variables for usability in the data product and test the model again. 
+
+1) Subset the data. 
+```{r}
+hero3<-subset(hero2, select=c("Age", "Parental.Status", "Gender", "Movies.Future.Year", "Merch.Future.Year", "Superhero", "Power", "Creative", "Introverted", "Agreeable", "DoGooder", "Strength"))
+```
+
+2. Reset the training set 
+
+```{r}
+set.seed(223) #sets the seed
+
+## create training and testing set
+inTrain<-createDataPartition(hero3$Superhero,p=0.6,list=FALSE) ##training set to 60% for medium sized data sets. 
+training<-hero3[inTrain,]
+testing<-hero3[-inTrain,]
+```
+
+3. Rerun the model and find out the important variables. 
+```{r}
+model3 <- train(Superhero ~ ., data=training, trControl=ctrl, method="rf") ## fit model with random forests
+#check important variables
+imp_var<-varImp(model2)
+imp_var
+```
+Ok, great the importance ranking hasn't changed much. 
+
+Run a prediction on the training set. 
+```{r}
+prediction <- predict(model3, newdata=training)
+acc_test<-sum(prediction == training$Superhero) / length(prediction)
+confusionMatrix(training$Superhero, prediction)$table
+confusionMatrix(training$Superhero, prediction)$overall
+```
+
+Once again, the accuracy is `percent(acc_test)' and the confusion matrix makes more sense.
+
+4. Run a prediction on the test set 
+Let's try it out on the test data just for kicks. 
+
+```{r}
+prediction <- predict(model3, newdata=testing)
+acc_test<-sum(prediction == testing$Superhero) / length(prediction)
+confusionMatrix(testing$Superhero, prediction)$table
+confusionMatrix(testing$Superhero, prediction)$overall
+```
+
+Now for the real test. How accurate are my personality trait assumptions in the wild? Let's find out. 
+
+1) Export the data set for use in the data product 
+
+```{r}
+hero4<-cbind(hero3, Id=msub$Id, Date=msub$Date) #add back in date and ID 
+setwd("~/Documents/Coursera/Data Products/project/hero_shiny_app")
+write.csv(hero4, file="data/hero.csv")
+```
+
+```{r}
+default<-hero4[1,]
+default$Power<-NULL
+default$Creative<-NULL
+default$Introverted<-NULL
+default$Agreeable<-NULL
+default$DoGooder<-NULL
+default$Strength<-NULL
+```
+
+
