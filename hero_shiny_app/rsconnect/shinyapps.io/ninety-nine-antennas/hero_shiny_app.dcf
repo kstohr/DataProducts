@@ -1,8 +1,8 @@
 name: hero_shiny_app
 account: ninety-nine-antennas
 server: shinyapps.io
-bundleId: 249087
+bundleId: 253213
 url: https://ninety-nine-antennas.shinyapps.io/hero_shiny_app
-when: 1440355642.44379
+when: 1440694469.79055
 asMultiple: FALSE
 asStatic: FALSE

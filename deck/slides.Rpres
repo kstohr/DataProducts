@@ -95,9 +95,18 @@ Summary
 
 This project analyzes demographic data collected from 400 survey takers asked to pick their favorite superhero from a group of popular superheros. The goal of the project is to build a tool that can predict a user's favorite superhero from a limited set of superheros based on a limited set of demographic data and some 'hints' from the user. 
 
-<small>*Data Source*  
+<small>
+View Read.me and Github Files  
+[Project files](https://github.com/kstohr/DataProducts) 
+
+View Application
+[Favorite Superhero](https://ninety-nine-antennas.shinyapps.io/hero_shiny_app)
+
+
+*Data Source*  
 Data provided courtesy of: 
-Ask Your Target Market, "[Superman](https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520#)", June 11, 2015, ([wwww.aytm.com](http://www.aytm.com)). </small> 
+Ask Your Target Market, "[Superman](https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520#)", June 11, 2015, ([wwww.aytm.com](http://www.aytm.com)). 
+</small> 
 
 Data Analysis
 ========================================================
@@ -116,15 +125,19 @@ The data product collects user data, fits it to the model, and makes a predictio
 1. Women were more likely to choose Wonderwoman.
 2. Older participants were more likley to choose Superman.
 3. Participants who were more likely in the past or future to buy merchandise or watch superhero movies were more likely to pick less popular characters.  
-4. Other factors, such as location or education, had little bearing on preference.</small>
+4. Factors, such as location or education, had little bearing on preference.</small>
 
 Known Limitations
 ========================================================
 There are a number of known issues with the resulting model: 
 
+<small>
 - The superhero list is limited, and may not include the true favorite of the respondent
 - The list favors DC and Marvel comics heros, and is not reflective of world cultures 
 - Demographic information may have little bearing on superhero preference, which may be the result of other variables such as sibling preference, exposure to television, or overall nerdiness; data for which is not available.
 - Users should be advised that a correlation is not an indication of causation.
+</small> 
+
+
 
 Enjoy.

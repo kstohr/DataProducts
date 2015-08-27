@@ -112,11 +112,14 @@ shinyUI(fluidPage(
                 hr(),
                 fluidRow(
                         column(12, align="left", offset = 1,
-                               h6("Documentation:"),
-                               h6("Select your favorite hero and identify which power you'd most like to possess. The application will 'predict' which hero is most likely your favorite based on the inputs given using a model built with Random Forests from a survey of 400 respondents.  As you update your inputs, the application updates it's prediction. When you are done, click 'done.'. The application will check to see if it guessed correctly and print a corresponding message. Your inputs are then stored in the dataframe to improve the model with use."), 
-                               h6("Data Source:"),
-                               h6("Data provided courtesy of: Ask Your Target Market"),
-                               h6("[Superman](https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520)")
+                               h5("Documentation:"),
+                               h5("Select your favorite hero and identify which power you'd most like to possess. The application will 'predict' which hero is most likely your favorite based on the inputs given using a model built with Random Forests from a survey of 400 respondents.  As you update your inputs, the application updates it's prediction. When you are done, click 'done.'. The application will check to see if it guessed correctly and print a corresponding message. Your inputs are then stored in the dataframe to improve the model with use."), 
+                               h5("View application files on Github:"),
+                        h5(a("Appliction files on Github",  href="https://github.com/kstohr/DataProducts", target="_blank")),
+
+                               h5("Data Source:"),
+                               h5("Data provided courtesy of: Ask Your Target Market"),
+                               h5(a("Superman", href="https://aytm.com/surveys/353802/stat/754346b79e6a9eeb44b8d64edfe1c520)", target= "_blank"))
                                )),
                 hr()
                               
